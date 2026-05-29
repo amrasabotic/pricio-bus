@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -14,22 +14,34 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
+  const { signIn, loading, authRedirect, user } = useAuth();
   const router = useRouter();
+
+  // Once auth resolves after a sign-in attempt, navigate to the canonical destination
+  useEffect(() => {
+    if (!signingIn) return;
+    if (loading) return;
+    if (!user) return; // sign-in failed, stay on page
+
+    if (authRedirect && authRedirect !== '/auth/login') {
+      router.replace(authRedirect);
+    }
+  }, [signingIn, loading, authRedirect, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSigningIn(true);
     const { error } = await signIn(email, password);
     if (error) {
       toast.error(error);
-      setLoading(false);
-    } else {
-      // router.push('/dashboard');
-      window.location.href = '/dashboard';
+      setSigningIn(false);
     }
+    // On success, the onAuthStateChange in AuthContext updates user + authRedirect.
+    // The useEffect above will fire and navigate when loading settles.
   }
+
+  const isLoading = signingIn && (loading || !authRedirect);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
@@ -81,8 +93,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11">
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</> : 'Sign in'}
+            <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11">
+              {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</> : 'Sign in'}
             </Button>
           </form>
         </div>

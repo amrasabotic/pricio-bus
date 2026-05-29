@@ -61,7 +61,7 @@ export default async function BusinessSlugPage({ params }: Props) {
       .from('pricio_items')
       .select('*')
       .eq('business_id', business.id)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .order('order_index'),
   ]);
 

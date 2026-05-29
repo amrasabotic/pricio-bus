@@ -5,12 +5,16 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase/client';
 import type { Profile, UserAppAccess } from './supabase/types';
 
+type AuthRedirect = '/admin' | '/dashboard' | '/no-access' | '/auth/login' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   appAccess: UserAppAccess | null;
   loading: boolean;
+  /** The canonical redirect destination determined after profile + access checks */
+  authRedirect: AuthRedirect;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -25,44 +29,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [appAccess, setAppAccess] = useState<UserAppAccess | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authRedirect, setAuthRedirect] = useState<AuthRedirect>(null);
 
-  // async function fetchProfile(userId: string) {
-  //   const { data: profileData } = await supabase
-  //     .from('profiles')
-  //     .select('*')
-  //     .eq('id', userId)
-  //     .maybeSingle();
+  function computeRedirect(p: Profile | null, access: UserAppAccess | null): AuthRedirect {
+    if (!p) return '/auth/login';
 
-  //   const { data: accessData } = await supabase
-  //     .from('user_app_access')
-  //     .select('*')
-  //     .eq('user_id', userId)
-  //     .eq('app_id', 'e15e8982-c70b-4507-ac76-b3159f956ec0')
-  //     .maybeSingle();
+    if (p.role === 'superadmin') {
+      return '/admin'; 
+    } 
 
-  //   setProfile(profileData);
-  //   setAppAccess(accessData);
-  // }
+    // role === 'user': must have active app access
+    if (access && access.status === 'active') {
+      return '/dashboard';
+    }
 
-  async function fetchProfile(userId: string) {
-  try {
-    const [profileRes, accessRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('user_app_access').select('*').eq('user_id', userId).maybeSingle()
-    ]);
-
-    setProfile(profileRes.data);
-    setAppAccess(accessRes.data);
-  } catch (err) {
-    console.error("Error loading auth data profile:", err);
+    return '/no-access';
   }
-}
 
-  
+  async function fetchProfileAndAccess(userId: string) {
+    try {
+      // Always fetch profile first
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      setProfile(profileData);
+
+      let accessData: UserAppAccess | null = null;
+
+      // Only check user_app_access for non-superadmin users
+      if (profileData && profileData.role !== 'superadmin') {
+        const { data } = await supabase
+          .from('user_app_access')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle();
+        accessData = data;
+      }
+
+      setAppAccess(accessData);
+      setAuthRedirect(computeRedirect(profileData, accessData));
+    } catch (err) {
+      console.error('Error loading auth data:', err);
+      setAuthRedirect('/auth/login');
+    }
+  }
 
   async function refreshProfile() {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfileAndAccess(user.id);
     }
   }
 
@@ -71,8 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
+        fetchProfileAndAccess(session.user.id).finally(() => setLoading(false));
       } else {
+        setAuthRedirect('/auth/login');
         setLoading(false);
       }
     });
@@ -82,12 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         (async () => {
-          await fetchProfile(session.user.id);
+          await fetchProfileAndAccess(session.user.id);
           setLoading(false);
         })();
       } else {
         setProfile(null);
         setAppAccess(null);
+        setAuthRedirect('/auth/login');
         setLoading(false);
       }
     });
@@ -110,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, appAccess, loading, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, appAccess, loading, authRedirect, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

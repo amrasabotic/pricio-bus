@@ -28,21 +28,30 @@ export interface Database {
           id: string;
           user_id: string;
           app_id: string;
-          is_active: boolean;
+          status: 'active' | 'inactive';
+          plan: string;
+          expires_at: string | null;
+          stripe_session_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
           app_id: string;
-          is_active?: boolean;
+          status?: 'active' | 'inactive';
+          plan?: string;
+          expires_at?: string | null;
+          stripe_session_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
           app_id?: string;
-          is_active?: boolean;
+          status?: 'active' | 'inactive';
+          plan?: string;
+          expires_at?: string | null;
+          stripe_session_id?: string | null;
           created_at?: string;
         };
       };
@@ -119,7 +128,7 @@ export interface Database {
           description: string | null;
           price: number;
           image_url: string | null;
-          is_active: boolean;
+          status: 'active' | 'inactive';
           order_index: number;
           created_at: string;
         };
@@ -131,7 +140,7 @@ export interface Database {
           description?: string | null;
           price: number;
           image_url?: string | null;
-          is_active?: boolean;
+          status?: 'active' | 'inactive';
           order_index?: number;
           created_at?: string;
         };
@@ -143,7 +152,7 @@ export interface Database {
           description?: string | null;
           price?: number;
           image_url?: string | null;
-          is_active?: boolean;
+          status?: 'active' | 'inactive';
           order_index?: number;
           created_at?: string;
         };

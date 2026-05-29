@@ -7,9 +7,10 @@ import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, appAccess, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
+  // Superadmin check only — no app access check
   useEffect(() => {
     if (loading) return;
 
@@ -18,16 +19,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    if (!appAccess || !appAccess.is_active) {
-      router.replace('/auth/login');
-      return;
-    }
-
     if (profile.role !== 'superadmin') {
+      // Regular users go to their own area
       router.replace('/dashboard');
       return;
     }
-  }, [user, profile, appAccess, loading, router]);
+  }, [user, profile, loading, router]);
 
   if (loading) {
     return (
@@ -40,7 +37,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || !profile || profile.role !== 'superadmin' || !appAccess?.is_active) {
+  if (!user || !profile || profile.role !== 'superadmin') {
     return null;
   }
 

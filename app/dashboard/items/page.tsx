@@ -32,7 +32,7 @@ export default function ItemsPage() {
   const [formDesc, setFormDesc] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formCategoryId, setFormCategoryId] = useState('');
-  const [formActive, setFormActive] = useState(true);
+  const [formStatus, setFormStatus] = useState<'active' | 'inactive'>('active');
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,7 +67,7 @@ export default function ItemsPage() {
     setFormDesc('');
     setFormPrice('');
     setFormCategoryId('');
-    setFormActive(true);
+    setFormStatus('active');
     setFormImageFile(null);
     setFormImagePreview(null);
     setDialogOpen(true);
@@ -79,7 +79,7 @@ export default function ItemsPage() {
     setFormDesc(item.description ?? '');
     setFormPrice(String(item.price));
     setFormCategoryId(item.category_id ?? '');
-    setFormActive(item.is_active);
+    setFormStatus(item.status);
     setFormImageFile(null);
     setFormImagePreview(item.image_url);
     setDialogOpen(true);
@@ -121,7 +121,7 @@ export default function ItemsPage() {
           description: formDesc || null,
           price,
           category_id: formCategoryId === 'none' ? null : formCategoryId || null,
-          is_active: formActive,
+          status: formStatus,
           image_url: imageUrl,
         }).eq('id', editItem.id);
         if (error) { toast.error(error.message); }
@@ -134,7 +134,7 @@ export default function ItemsPage() {
           description: formDesc || null,
           price,
           category_id: formCategoryId === 'none' ? null : formCategoryId || null,
-          is_active: formActive,
+          status: formStatus,
           order_index: maxOrder + 1,
         }).select().single();
 
@@ -168,7 +168,8 @@ export default function ItemsPage() {
   }
 
   async function toggleActive(item: PricioItems) {
-    await supabase.from('pricio_items').update({ is_active: !item.is_active }).eq('id', item.id);
+    const newStatus = item.status === 'active' ? 'inactive' : 'active';
+    await supabase.from('pricio_items').update({ status: newStatus }).eq('id', item.id);
     loadData();
   }
 
@@ -277,7 +278,10 @@ export default function ItemsPage() {
             </div>
             <div className="flex items-center justify-between">
               <Label>Active (visible on public page)</Label>
-              <Switch checked={formActive} onCheckedChange={setFormActive} />
+              <Switch
+                checked={formStatus === 'active'}
+                onCheckedChange={(checked) => setFormStatus(checked ? 'active' : 'inactive')}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -326,8 +330,8 @@ function ItemRow({
       </div>
       <div className="flex items-center gap-3">
         <span className="font-semibold text-slate-800 text-sm">${Number(item.price).toFixed(2)}</span>
-        <Badge variant={item.is_active ? 'default' : 'secondary'} className={item.is_active ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
-          {item.is_active ? 'Active' : 'Hidden'}
+        <Badge variant={item.status === 'active' ? 'default' : 'secondary'} className={item.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
+          {item.status === 'active' ? 'Active' : 'Hidden'}
         </Badge>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
